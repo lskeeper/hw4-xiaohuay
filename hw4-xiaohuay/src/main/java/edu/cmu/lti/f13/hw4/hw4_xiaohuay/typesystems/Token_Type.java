@@ -14,7 +14,7 @@ import org.apache.uima.cas.Feature;
 import org.apache.uima.jcas.tcas.Annotation_Type;
 
 /** 
- * Updated by JCasGen Thu Oct 17 01:01:23 EDT 2013
+ * Updated by JCasGen Mon Oct 28 19:25:47 EDT 2013
  * @generated */
 public class Token_Type extends Annotation_Type {
   /** @generated */
@@ -79,6 +79,24 @@ public class Token_Type extends Annotation_Type {
     ll_cas.ll_setIntValue(addr, casFeatCode_frequency, v);}
     
   
+ 
+  /** @generated */
+  final Feature casFeat_lemma;
+  /** @generated */
+  final int     casFeatCode_lemma;
+  /** @generated */ 
+  public String getLemma(int addr) {
+        if (featOkTst && casFeat_lemma == null)
+      jcas.throwFeatMissing("lemma", "edu.cmu.lti.f13.hw4.hw4_xiaohuay.typesystems.Token");
+    return ll_cas.ll_getStringValue(addr, casFeatCode_lemma);
+  }
+  /** @generated */    
+  public void setLemma(int addr, String v) {
+        if (featOkTst && casFeat_lemma == null)
+      jcas.throwFeatMissing("lemma", "edu.cmu.lti.f13.hw4.hw4_xiaohuay.typesystems.Token");
+    ll_cas.ll_setStringValue(addr, casFeatCode_lemma, v);}
+    
+  
 
 
 
@@ -95,6 +113,10 @@ public class Token_Type extends Annotation_Type {
  
     casFeat_frequency = jcas.getRequiredFeatureDE(casType, "frequency", "uima.cas.Integer", featOkTst);
     casFeatCode_frequency  = (null == casFeat_frequency) ? JCas.INVALID_FEATURE_CODE : ((FeatureImpl)casFeat_frequency).getCode();
+
+ 
+    casFeat_lemma = jcas.getRequiredFeatureDE(casType, "lemma", "uima.cas.String", featOkTst);
+    casFeatCode_lemma  = (null == casFeat_lemma) ? JCas.INVALID_FEATURE_CODE : ((FeatureImpl)casFeat_lemma).getCode();
 
   }
 }

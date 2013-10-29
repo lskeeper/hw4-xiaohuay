@@ -75,6 +75,11 @@
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
+		<dependency>
+			<groupId>edu.washington.cs.knowitall</groupId>
+			<artifactId>morpha-stemmer</artifactId>
+			<version>1.0.5</version>
+		</dependency>
 	</dependencies>
 
 	<build>

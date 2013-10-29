@@ -3,10 +3,13 @@ package edu.cmu.lti.f13.hw4.hw4_xiaohuay.casconsumers;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Map.Entry;
 
 import org.apache.uima.cas.CAS;
 import org.apache.uima.cas.CASException;
@@ -25,31 +28,37 @@ import edu.cmu.lti.f13.hw4.hw4_xiaohuay.utils.Utils;
 
 public class RetrievalEvaluator extends CasConsumer_ImplBase {
 
-  /** query id number **/
-  public ArrayList<Integer> qIdList;
+  /** set of query id **/
+  public HashSet<Integer> qIdSet;
 
   /** query and text relevant values **/
-  public ArrayList<Integer> relList;
 
   public List<Map<String, Integer>> wordDictList;
 
-  public ArrayList<String> globalWordDictionary;
+  public List<String> docTextList;
+
+  public Map<Integer, Integer> relValueMap;
 
   public Map<Integer, Integer> queryDocIndexMap;
 
-  public Map<Integer, List<Integer>> retreivalDocIndexMap;
+  public Map<Integer, List<Integer>> retrievedDocIndexMap;
+
+  public Map<Integer, Map<Integer, Double>> cosineScoresMap;
+
+  public int docIndex;
 
   public void initialize() throws ResourceInitializationException {
 
-    qIdList = new ArrayList<Integer>();
-    relList = new ArrayList<Integer>();
+    qIdSet = new HashSet<Integer>();
     queryDocIndexMap = new HashMap<Integer, Integer>();
-    retreivalDocIndexMap = new HashMap<Integer, List<Integer>>();
+    docTextList = new ArrayList<String>();
+    retrievedDocIndexMap = new HashMap<Integer, List<Integer>>();
+    cosineScoresMap = new HashMap<Integer, Map<Integer, Double>>();
+    relValueMap = new HashMap<Integer, Integer>();
+    wordDictList = new ArrayList<Map<String, Integer>>();
+    docIndex = 0;
   }
 
-  /**
-   * TODO :: 1. construct the global word dictionary 2. keep the word frequency for each sentence
-   */
   @Override
   public void processCas(CAS aCas) throws ResourceProcessException {
 
@@ -61,36 +70,27 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
     }
 
     FSIterator<Annotation> it = jcas.getAnnotationIndex(Document.type).iterator();
-    int docIndex = 0;
-    while (it.hasNext()) {
+    if (it.hasNext()) {
       Document doc = (Document) it.next();
       // Make sure that your previous annotators have populated this in CAS
       FSList fsTokenList = doc.getTokenList();
       Map<String, Integer> termFreqMap = getTermFreqMap(fsTokenList);
-      globalWordDictionary.addAll(termFreqMap.keySet());
       wordDictList.add(termFreqMap);
-      qIdList.add(doc.getQueryID());
+      docTextList.add(doc.getText());
+      relValueMap.put(docIndex, doc.getRelevanceValue());
+      qIdSet.add(doc.getQueryID());
       int relValue = doc.getRelevanceValue();
       int queryId = doc.getQueryID();
-      relList.add(relValue);
       if (relValue == 99) {
         queryDocIndexMap.put(queryId, docIndex);
       } else {
-        if (retreivalDocIndexMap.containsKey(queryId)) {
-          retreivalDocIndexMap.get(queryId).add(docIndex);
+        if (retrievedDocIndexMap.containsKey(queryId)) {
+          retrievedDocIndexMap.get(queryId).add(docIndex);
         } else {
-          retreivalDocIndexMap.put(queryId, new ArrayList<Integer>(Arrays.asList(docIndex)));
-        }
-        
-      }
-    }
-    for (Map<String, Integer> termFreqMap : wordDictList) {
-      Set<String> keySet = termFreqMap.keySet();
-      for (String word : globalWordDictionary) {
-        if (!keySet.contains(word)) {
-          termFreqMap.put(word, 0);
+          retrievedDocIndexMap.put(queryId, new ArrayList<Integer>(Arrays.asList(docIndex)));
         }
       }
+      docIndex++;
     }
   }
 
@@ -103,66 +103,110 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
     return resultMap;
   }
 
-  /**
-   * TODO 1. Compute Cosine Similarity and rank the retrieved sentences 2. Compute the MRR metric
-   */
   @Override
   public void collectionProcessComplete(ProcessTrace arg0) throws ResourceProcessException,
           IOException {
 
     super.collectionProcessComplete(arg0);
-
-    // TODO :: compute the cosine similarity measure
-    double cosineSim = 0;
-    int docNum = qIdList.size();
-    int currentQueryId = 0;
-    for (int queryId : qIdList) {
-      if (queryId != currentQueryId) {
-        currentQueryId = queryId;
-        Map<String, Integer> queryTermFreqMap = new HashMap<String, Integer>();
-        for (int i = 0; i < docNum; i++) {
-          if (qIdList.get(i) == currentQueryId) {
-            if (relList.get(i) == 99) {
-              queryTermFreqMap = wordDictList.get(i);
-            } else {
-              if (relList.get(i) == 0) {
-              }
-            }
+    List<Integer> rankList = new ArrayList<Integer>();
+    for (int queryId : qIdSet) {
+      // compute the cosine similarity of retrieved sentences
+      Map<String, Integer> queryTermFreqMap = wordDictList.get(queryDocIndexMap.get(queryId));
+      List<Integer> retrievedDocIndexes = retrievedDocIndexMap.get(queryId);
+      if (!cosineScoresMap.containsKey(queryId)) {
+        cosineScoresMap.put(queryId, new HashMap<Integer, Double>());
+      }
+      for (int retrievedDocIndex : retrievedDocIndexes) {
+        Map<String, Integer> answerTermFreqMap = wordDictList.get(retrievedDocIndex);
+        double cosineSim = compute_cosine(queryTermFreqMap, answerTermFreqMap);
+        cosineScoresMap.get(queryId).put(retrievedDocIndex, cosineSim);
+      }
+      // compute the rank of retrieved sentences
+      final Map<Integer, Double> similarityScoresMap = cosineScoresMap.get(queryId);
+      Collections.sort(retrievedDocIndexes, new Comparator<Integer>() {
+        public int compare(Integer index1, Integer index2) {
+          if (similarityScoresMap.get(index1) > similarityScoresMap.get(index2)) {
+            return -1;
+          } else if ((similarityScoresMap.get(index1) < similarityScoresMap.get(index2))) {
+            return 1;
+          } else {
+            return relValueMap.get(index1) > relValueMap.get(index2) ? -1 : 1;
           }
         }
-
+      });
+      int rank = 0;
+      String docText = null;
+      double bestScore = 0;
+      for (int i = 0; i < retrievedDocIndexes.size(); i++) {
+        int targetDocIndex = retrievedDocIndexes.get(i);
+        if (relValueMap.get(targetDocIndex) == 1) {
+          rank = i + 1;
+          docText = docTextList.get(targetDocIndex);
+          bestScore = similarityScoresMap.get(targetDocIndex);
+          break;
+        } else {
+          continue;
+        }
       }
+      rankList.add(rank);
+      System.out.println(String.format("Score: %f rank = %d rel = 1 qid = %d %s", bestScore, rank,
+              queryId, docText));
     }
-
-    // TODO :: compute the rank of retrieved sentences
-
-    // TODO :: compute the metric:: mean reciprocal rank
-    double metric_mrr = compute_mrr();
+    // compute the metric:: mean reciprocal rank
+    double metric_mrr = compute_mrr(rankList);
     System.out.println(" (MRR) Mean Reciprocal Rank ::" + metric_mrr);
   }
 
   /**
+   * Get the cosine similarity between two bag of words
    * 
-   * @return cosine_similarity
+   * @param bag1
+   * @param bag2
+   * @return The cosine similarity between two bags of words
+   * 
    */
-  private double computeCosineSimilarity(Map<String, Integer> queryVector,
-          Map<String, Integer> docVector) {
-    double cosine_similarity = 0.0;
+  private double compute_cosine(Map<String, Integer> bag1, Map<String, Integer> bag2) {
+    if (bag1.isEmpty() || bag2.isEmpty()) {
+      return 0;
+    }
+    double score = 0.0;
+    for (Entry<String, Integer> tokenEntry : bag1.entrySet()) {
+      String tokenString = tokenEntry.getKey();
+      Integer count = tokenEntry.getValue();
+      if (bag2.containsKey(tokenString)) {
+        score += bag2.get(tokenString) * count;
+      }
+    }
+    return score / Math.sqrt(getLength(bag1) * getLength(bag2));
+  }
 
-    // TODO :: compute cosine similarity between two sentences
-
-    return cosine_similarity;
+  /**
+   * Get the Euclidean length of a bag of word
+   * 
+   * @param bag
+   * @return The Euclidean length computed from the (word, frequency) map
+   * 
+   */
+  private double getLength(Map<String, Integer> bag) {
+    double result = 0;
+    for (Entry<String, Integer> tokenEntry : bag.entrySet()) {
+      Integer count = tokenEntry.getValue();
+      result += count * count;
+    }
+    return result;
   }
 
   /**
    * 
+   * @param rankList
    * @return mrr
    */
-  private double compute_mrr() {
+  private double compute_mrr(List<Integer> rankList) {
     double metric_mrr = 0.0;
-
-    // TODO :: compute Mean Reciprocal Rank (MRR) of the text collection
-
+    for (int rank : rankList) {
+      metric_mrr += 1.0 / rank;
+    }
+    metric_mrr /= rankList.size();
     return metric_mrr;
   }
 

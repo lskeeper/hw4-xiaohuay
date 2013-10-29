@@ -19,6 +19,8 @@ import edu.cmu.lti.f13.hw4.hw4_xiaohuay.utils.Utils;
 import edu.cmu.lti.f13.hw4.hw4_xiaohuay.typesystems.Document;
 import edu.cmu.lti.f13.hw4.hw4_xiaohuay.typesystems.Token;
 
+import edu.washington.cs.knowitall.morpha.MorphaStemmer;
+
 public class DocumentVectorAnnotator extends JCasAnnotator_ImplBase {
 
   private Pattern tokenPattern = Pattern.compile("[\\w\'-]+|$*\\d+\\.\\d+");
@@ -53,6 +55,7 @@ public class DocumentVectorAnnotator extends JCasAnnotator_ImplBase {
       Token token = new Token(jcas);
       token.setText(matcher.group(0));
       token.addToIndexes();
+      
     }
 
     Map<String, Integer> termFreqMap = new HashMap<String, Integer>();
@@ -70,7 +73,10 @@ public class DocumentVectorAnnotator extends JCasAnnotator_ImplBase {
     }
     for (Entry<String, Integer> termEntry : termFreqMap.entrySet()) {
       Token term = new Token(jcas);
-      term.setText(termEntry.getKey());
+      String tokenString = termEntry.getKey();
+      term.setText(tokenString);
+      String tokenLemma = MorphaStemmer.stemToken(tokenString);
+      term.setLemma(tokenLemma);
       term.setFrequency(termEntry.getValue());
       tokenList.add(term);
     }
