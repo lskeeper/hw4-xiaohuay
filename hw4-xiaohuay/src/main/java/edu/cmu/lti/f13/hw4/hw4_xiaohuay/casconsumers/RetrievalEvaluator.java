@@ -31,24 +31,28 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
   /** set of query id **/
   public HashSet<Integer> qIdSet;
 
-  /** query and text relevant values **/
-
+  /** list of term frequency maps **/
   public List<Map<String, Integer>> wordDictList;
 
+  /** list document indexes **/
   public List<String> docTextList;
 
+  /** map from document index to relevance value **/
   public Map<Integer, Integer> relValueMap;
 
+  /** map from query ID to query document index **/
   public Map<Integer, Integer> queryDocIndexMap;
 
+  /** map from query ID to retrieved document indexes **/
   public Map<Integer, List<Integer>> retrievedDocIndexMap;
 
+  /** map from query ID to cosine scores of corresponding documents **/
   public Map<Integer, Map<Integer, Double>> cosineScoresMap;
 
+  /** index of the document **/
   public int docIndex;
 
   public void initialize() throws ResourceInitializationException {
-
     qIdSet = new HashSet<Integer>();
     queryDocIndexMap = new HashMap<Integer, Integer>();
     docTextList = new ArrayList<String>();
@@ -74,6 +78,7 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
       Document doc = (Document) it.next();
       // Make sure that your previous annotators have populated this in CAS
       FSList fsTokenList = doc.getTokenList();
+      // Store all the relevant indexes and values in HashMaps for further retrieval
       Map<String, Integer> termFreqMap = getTermFreqMap(fsTokenList);
       wordDictList.add(termFreqMap);
       docTextList.add(doc.getText());
@@ -92,15 +97,6 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
       }
       docIndex++;
     }
-  }
-
-  private Map<String, Integer> getTermFreqMap(FSList fsTokenList) {
-    Map<String, Integer> resultMap = new HashMap<String, Integer>();
-    ArrayList<Token> tokenList = Utils.fromFSListToCollection(fsTokenList, Token.class);
-    for (Token token : tokenList) {
-      resultMap.put(token.getText(), token.getFrequency());
-    }
-    return resultMap;
   }
 
   @Override
@@ -155,6 +151,23 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
     // compute the metric:: mean reciprocal rank
     double metric_mrr = compute_mrr(rankList);
     System.out.println(" (MRR) Mean Reciprocal Rank ::" + metric_mrr);
+  }
+
+  /**
+   * Get the (word, frequency) map of a token list
+   * 
+   * @param fsTokenList
+   * @param clazz
+   * @return The (word, frequency) map for a token list
+   */
+
+  private Map<String, Integer> getTermFreqMap(FSList fsTokenList) {
+    Map<String, Integer> resultMap = new HashMap<String, Integer>();
+    ArrayList<Token> tokenList = Utils.fromFSListToCollection(fsTokenList, Token.class);
+    for (Token token : tokenList) {
+      resultMap.put(token.getText(), token.getFrequency());
+    }
+    return resultMap;
   }
 
   /**

@@ -47,21 +47,21 @@ public class DocumentVectorAnnotator extends JCasAnnotator_ImplBase {
 
   private void createTermFreqVector(JCas jcas, Document doc) {
     // construct a vector of tokens and update the tokenList in CAS
-
     String docText = doc.getText();
+    // tokenization based on regular expression
     Matcher matcher = tokenPattern.matcher(docText);
     // annotates each token in the document
     while (matcher.find()) {
       Token token = new Token(jcas);
       token.setText(matcher.group(0));
       token.addToIndexes();
-      
     }
 
     Map<String, Integer> termFreqMap = new HashMap<String, Integer>();
     ArrayList<Token> tokenList = new ArrayList<Token>();
     for (Token token : JCasUtil.selectCovered(Token.class, doc)) {
       String tokenText = token.getText();
+      // omit punctuation
       if (tokenText != null && Pattern.matches("\\p{Punct}", tokenText)) {
         continue;
       }
@@ -75,6 +75,7 @@ public class DocumentVectorAnnotator extends JCasAnnotator_ImplBase {
       Token term = new Token(jcas);
       String tokenString = termEntry.getKey();
       term.setText(tokenString);
+      // stemming using Morpha Stemmer
       String tokenLemma = MorphaStemmer.stemToken(tokenString);
       term.setLemma(tokenLemma);
       term.setFrequency(termEntry.getValue());

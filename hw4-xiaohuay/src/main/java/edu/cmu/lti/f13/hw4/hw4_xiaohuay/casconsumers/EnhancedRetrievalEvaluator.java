@@ -25,7 +25,6 @@ import org.apache.uima.resource.ResourceInitializationException;
 import org.apache.uima.resource.ResourceProcessException;
 import org.apache.uima.util.ProcessTrace;
 
-import edu.cmu.lti.f13.hw4.hw4_xiaohuay.VectorSpaceRetrieval;
 import edu.cmu.lti.f13.hw4.hw4_xiaohuay.typesystems.Document;
 import edu.cmu.lti.f13.hw4.hw4_xiaohuay.typesystems.Token;
 import edu.cmu.lti.f13.hw4.hw4_xiaohuay.utils.Utils;
@@ -35,23 +34,29 @@ public class EnhancedRetrievalEvaluator extends CasConsumer_ImplBase {
   /** set of query id **/
   public HashSet<Integer> qIdSet;
 
-  /** query and text relevant values **/
-
+  /** list of term frequency maps **/
   public List<Map<String, Integer>> wordDictList;
 
+  /** list document indexes **/
   public List<String> docTextList;
 
+  /** map from document index to relevance value **/
   public Map<Integer, Integer> relValueMap;
 
+  /** map from query ID to query document index **/
   public Map<Integer, Integer> queryDocIndexMap;
 
+  /** map from query ID to retrieved document indexes **/
   public Map<Integer, List<Integer>> retrievedDocIndexMap;
 
+  /** map from query ID to cosine scores of corresponding documents **/
   public Map<Integer, Map<Integer, Double>> cosineScoresMap;
 
-  public List<String> stopwordList;
-
+  /** index of the document **/
   public int docIndex;
+
+  // ** list of stop words **/
+  public List<String> stopwordList;
 
   public void initialize() throws ResourceInitializationException {
 
@@ -121,6 +126,13 @@ public class EnhancedRetrievalEvaluator extends CasConsumer_ImplBase {
     }
   }
 
+  /**
+   * Get the (lemma, frequency) map of a token list with stopwords removed
+   * 
+   * @param fsTokenList
+   * @param stopwords
+   * @return The (lemma, frequency) map of a token list with stopwords removed
+   */
   private Map<String, Integer> getLemmaFreqMap(FSList fsTokenList, List<String> stopwords) {
     Map<String, Integer> resultMap = new HashMap<String, Integer>();
     ArrayList<Token> tokenList = Utils.fromFSListToCollection(fsTokenList, Token.class);
@@ -137,6 +149,13 @@ public class EnhancedRetrievalEvaluator extends CasConsumer_ImplBase {
     return resultMap;
   }
 
+  /**
+   * Get the (word, frequency) map of a token list with stopwords removed
+   * 
+   * @param fsTokenList
+   * @param stopwords
+   * @return The (word, frequency) map of a token list with stopwords removed
+   */
   private Map<String, Integer> getTermFreqMap(FSList fsTokenList, List<String> stopwords) {
     Map<String, Integer> resultMap = new HashMap<String, Integer>();
     ArrayList<Token> tokenList = Utils.fromFSListToCollection(fsTokenList, Token.class);
@@ -149,6 +168,12 @@ public class EnhancedRetrievalEvaluator extends CasConsumer_ImplBase {
     return resultMap;
   }
 
+  /**
+   * Get the (lemma, frequency) map of a token list
+   * 
+   * @param fsTokenList
+   * @return The (lemma, frequency) map of a token list
+   */
   private Map<String, Integer> getLemmaFreqMap(FSList fsTokenList) {
     Map<String, Integer> resultMap = new HashMap<String, Integer>();
     ArrayList<Token> tokenList = Utils.fromFSListToCollection(fsTokenList, Token.class);
@@ -163,6 +188,13 @@ public class EnhancedRetrievalEvaluator extends CasConsumer_ImplBase {
     return resultMap;
   }
 
+  /**
+   * Get the (word, frequency) map of a token list
+   * 
+   * @param fsTokenList
+   * @param stopwords
+   * @return The (word, frequency) map of a token list
+   */
   private Map<String, Integer> getTermFreqMap(FSList fsTokenList) {
     Map<String, Integer> resultMap = new HashMap<String, Integer>();
     ArrayList<Token> tokenList = Utils.fromFSListToCollection(fsTokenList, Token.class);
@@ -247,7 +279,7 @@ public class EnhancedRetrievalEvaluator extends CasConsumer_ImplBase {
         score += bag2.get(tokenString) * count;
       }
     }
-//    return score / Math.sqrt(getLength(bag1) * getLength(bag2));
+    // return score / Math.sqrt(getLength(bag1) * getLength(bag2));
     return score / Math.pow(getLength(bag1) * getLength(bag2), 0.75);
   }
 
